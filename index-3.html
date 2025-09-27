@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>KUCH BANKE DIKHANA HAI - Life Tracker</title>
+
+    <link rel="manifest" href="manifest.json"> 
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KBDIH Tracker">
+    <meta name="theme-color" content="#0D1117">
+
+    <style>
+        /* --- PROFESSIONAL DARK MODE CSS START --- */
+        :root {
+            /* Dark/Cyberpunk Palette */
+            --primary-color: #00F0FF; 
+            --secondary-color: #FF70A6; 
+            --accent-color: #FFE000; 
+            --background-color: #0D1117; 
+            --card-color: #161B22; 
+            --cross-color: var(--secondary-color);
+            --text-color: #C9D1D9; 
+            --grid-gap: 6px;
+        }
+
+        body {
+            font-family: 'Consolas', 'Courier New', monospace;
+            margin: 0;
+            padding: 30px 20px;
+            background-color: var(--background-color); 
+            color: var(--text-color);
+            line-height: 1.6;
+            /* FIX: Ensure body takes up full height for mobile PWA mode */
+            min-height: 100vh; 
+        }
+
+        /* Header Styling */
+        h1 {
+            font-family: 'Arial Narrow', sans-serif; 
+            color: var(--primary-color);
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 5px; 
+            font-size: 3.0em;
+            font-weight: 700;
+            letter-spacing: 5px;
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.4); 
+            text-transform: uppercase;
+            text-decoration: underline; 
+            text-decoration-color: var(--primary-color);
+            text-decoration-thickness: 3px;
+        }
+        
+        /* Clock Container */
+        #clock-container {
+            text-align: center;
+            margin-bottom: 40px; 
+        }
+
+        #current-time {
+            font-family: 'Consolas', monospace;
+            font-size: 1.5em; 
+            font-weight: bold;
+            color: var(--accent-color);
+            text-shadow: 0 0 5px rgba(255, 224, 0, 0.4);
+            padding: 5px 10px;
+            display: inline-block;
+        }
+
+        /* Current Day Info Bar Styling */
+        #info-bar {
+            background-color: #1F2631; 
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 5px solid var(--accent-color); 
+            font-size: 0.95em;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        #current-date-display { color: var(--primary-color); font-weight: 700; }
+
+        /* Stats Card Styling */
+        #stats {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin-bottom: 35px;
+            background-color: var(--card-color); 
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 0 5px rgba(255, 255, 255, 0.05);
+            padding: 25px 0;
+            border: 1px solid #30363D; 
+        }
+
+        .stat-item { text-align: center; padding: 10px; flex-basis: 30%; }
+        .stat-value { font-size: 2.8em; font-weight: 800; color: var(--accent-color); }
+        #current-day-stat { color: var(--primary-color); font-size: 3.2em; }
+        .stat-label { font-size: 1.0em; color: #8B949E; text-transform: uppercase; }
+
+        /* Day Grid Styling */
+        #day-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(30px, 1fr));
+            gap: var(--grid-gap);
+            padding: 10px;
+            background-color: var(--card-color); 
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            border: 1px solid #30363D; 
+        }
+
+        .day-box {
+            width: 100%;
+            padding-top: 100%; 
+            height: 0; 
+            position: relative;
+            background-color: #21262D; 
+            border-radius: 4px;
+            transition: background-color 0.15s ease, transform 0.05s;
+            cursor: pointer;
+            border: 1px solid #444; 
+        }
+        
+        .day-box:active { transform: scale(0.95); }
+
+        .day-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em; 
+            font-weight: bold;
+            color: transparent; 
+            user-select: none;
+            white-space: nowrap; 
+        }
+
+        /* Passed Day (X) Styling */
+        .marked { background-color: #33001A; border-color: var(--secondary-color); }
+        .marked .day-content { 
+            color: var(--cross-color); 
+            font-size: 1.5em; 
+        }
+
+        /* Current Day (Day Number) Styling */
+        .current-day {
+            background-color: #003333; 
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
+            border-color: var(--primary-color); 
+            animation: current-day-glow 1.5s infinite alternate;
+        }
+        .current-day .day-content {
+            color: var(--primary-color); 
+            text-shadow: 0 0 8px var(--primary-color);
+        }
+
+        /* --- MODAL STYLES --- */
+        
+        #modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 999; 
+            display: none; opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #modal-overlay.visible { display: block; opacity: 1; }
+
+        #day-details {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%); 
+            width: 85%; 
+            max-width: 450px; 
+            padding: 20px; 
+            background-color: var(--card-color); 
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.5); 
+            border: 2px solid var(--primary-color); 
+            z-index: 1000; 
+            display: none; opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        #day-details.visible { display: block; opacity: 1; transform: translate(-50%, -50%); }
+
+        #day-details h2 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 1.6em; 
+            border-bottom: 1px solid #30363D;
+            padding-bottom: 10px;
+            margin-bottom: 15px; 
+            text-decoration: underline; 
+            text-decoration-color: var(--primary-color);
+        }
+
+        #day-details p {
+            font-size: 1.0em; 
+            margin: 10px 0; 
+            padding-left: 10px; 
+            border-left: 3px solid var(--accent-color); 
+            color: var(--text-color);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px; 
+            right: 15px; 
+            font-size: 1.6em; 
+            font-weight: bold;
+            color: var(--secondary-color);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close-btn:hover { color: #FF0077; }
+
+        .status-passed { color: var(--secondary-color); font-weight: bold; }
+        .status-today { color: var(--primary-color); font-weight: bold; }
+        .status-future { color: var(--accent-color); font-weight: bold; }
+        /* --- CSS END --- */
+    </style>
+</head>
+<body>
+
+    <div id="modal-overlay"></div>
+
+    <h1>KUCH BANKE DIKHANA HAI</h1>
+
+    <div id="clock-container">
+        <span id="current-time"></span>
+    </div>
+
+    <div id="info-bar">
+        <p>Current Date: <strong id="current-date-display"></strong></p>
+        <p>Total Journey Days: <strong>3383</strong></p>
+    </div>
+
+    <div id="stats">
+        <div class="stat-item">
+            <div class="stat-value" id="days-left-stat">0</div>
+            <div class="stat-label">Days Left</div>
+        </div>
+        
+        <div class="stat-item">
+            <div class="stat-value" id="current-day-stat">0</div>
+            <div class="stat-label">Current Day No.</div>
+        </div>
+        
+        <div class="stat-item">
+            <div class="stat-value" id="days-passed-stat">0</div>
+            <div class="stat-label">Days Passed</div>
+        </div>
+    </div>
+
+    <div id="day-details">
+        <span class="close-btn">&times;</span> 
+        <h2>DAY BREAKDOWN</h2>
+        <p><strong>Date:</strong> <span id="detail-date"></span></p>
+        <p><strong>Status:</strong> <span id="detail-status"></span></p>
+        <p><strong>Day No. in Journey:</strong> <span id="detail-day-number"></span></p>
+        <p><strong>Days Passed (excluding this day):</strong> <span id="detail-passed-detail"></span></p>
+        <p><strong>Days Remaining (after this day):</strong> <span id="detail-remaining"></span></p>
+    </div>
+    
+    <div id="day-grid">
+        </div>
+    
+    <script>
+        const grid = document.getElementById('day-grid');
+        const daysLeftStat = document.getElementById('days-left-stat');
+        const currentDayStat = document.getElementById('current-day-stat');
+        const daysPassedStat = document.getElementById('days-passed-stat');
+
+        const currentDateDisplay = document.getElementById('current-date-display');
+        const currentTimeDisplay = document.getElementById('current-time');
+
+        const detailsPanel = document.getElementById('day-details'); 
+        const modalOverlay = document.getElementById('modal-overlay'); 
+        const closeButton = detailsPanel.querySelector('.close-btn'); 
+
+        const detailDate = document.getElementById('detail-date');
+        const detailStatus = document.getElementById('detail-status');
+        const detailDayNumber = document.getElementById('detail-day-number'); 
+        const detailPassedDetail = document.getElementById('detail-passed-detail'); 
+        const detailRemaining = document.getElementById('detail-remaining');
+
+        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+        
+        // --- Fixed Dates (2025-01-01 to 2035-01-01) ---
+        const START_DATE = new Date('2025-01-01T00:00:00');
+        const TARGET_DATE = new Date('2035-01-01T00:00:00');
+
+        function getNormalizedToday() {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0); 
+            return now;
+        }
+
+        const TODAY = getNormalizedToday();
+        
+        const TOTAL_DAYS = Math.ceil((TARGET_DATE.getTime() - START_DATE.getTime()) / MS_PER_DAY);
+        
+        // The CURRENT_DAY_NUMBER calculation must be relative to the user's current date/time
+        // However, since I cannot know your real time, I'm using the fixed calculation based on the start date
+        const CURRENT_DAY_NUMBER = Math.floor((TODAY.getTime() - START_DATE.getTime()) / MS_PER_DAY) + 1;
+        const DAYS_PASSED_COUNT = CURRENT_DAY_NUMBER - 1;
+        
+        function formatDate(date, short = false) {
+            const d = new Date(date);
+            if (short) {
+                 return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            }
+            return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        }
+        
+        // --- Clock Update Function ---
+        function updateClock() {
+            const now = new Date();
+            const options = {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true 
+            };
+            const timeString = now.toLocaleTimeString('en-US', options);
+            currentTimeDisplay.textContent = timeString;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // --- Modal Control Functions ---
+        function showModal() {
+            modalOverlay.style.display = 'block';
+            modalOverlay.classList.add('visible');
+            detailsPanel.style.display = 'block';
+            detailsPanel.classList.add('visible');
+        }
+
+        function hideModal() {
+            modalOverlay.classList.remove('visible');
+            detailsPanel.classList.remove('visible');
+            setTimeout(() => {
+                modalOverlay.style.display = 'none';
+                detailsPanel.style.display = 'none';
+            }, 300);
+        }
+
+        // Add event listeners to close the modal
+        closeButton.addEventListener('click', hideModal);
+        modalOverlay.addEventListener('click', hideModal);
+
+
+        // --- Click Handler Function ---
+        function handleBoxClick(event) {
+            const box = event.currentTarget;
+            
+            const dayIndex = parseInt(box.dataset.dayIndex); 
+            const dateString = box.dataset.dateString;
+            
+            const daysPassedDetail = dayIndex - 1; 
+            const daysRemaining = TOTAL_DAYS - dayIndex;
+            
+            let statusText = '';
+            let statusClass = '';
+
+            if (dayIndex < CURRENT_DAY_NUMBER) {
+                statusText = 'COMPLETED (Passed)';
+                statusClass = 'status-passed';
+            } else if (dayIndex === CURRENT_DAY_NUMBER) {
+                statusText = 'TODAY';
+                statusClass = 'status-today';
+            } else {
+                statusText = 'REMAINING (Future)';
+                statusClass = 'status-future';
+            }
+
+            // Update the Details Panel
+            detailDate.textContent = dateString;
+            detailStatus.className = '';
+            detailStatus.classList.add(statusClass);
+            detailStatus.textContent = statusText;
+            detailDayNumber.textContent = dayIndex; 
+            detailPassedDetail.textContent = daysPassedDetail;
+            detailRemaining.textContent = daysRemaining;
+
+            showModal();
+        }
+
+
+        function renderGrid() {
+            grid.innerHTML = ''; 
+            
+            currentDateDisplay.textContent = formatDate(TODAY, true);
+            currentDayStat.textContent = CURRENT_DAY_NUMBER;
+            daysPassedStat.textContent = DAYS_PASSED_COUNT;
+            
+            const daysRemainingGlobal = TOTAL_DAYS - CURRENT_DAY_NUMBER; 
+            daysLeftStat.textContent = daysRemainingGlobal;
+            
+            // Loop through all 3383 days
+            for (let i = 0; i < TOTAL_DAYS; i++) {
+                const boxDate = new Date(START_DATE.getTime() + (i * MS_PER_DAY));
+                const dateString = formatDate(boxDate);
+                const dayIndex = i + 1; 
+
+                const box = document.createElement('div');
+                box.classList.add('day-box', 'tooltip');
+                
+                box.dataset.dayIndex = dayIndex;
+                box.dataset.dateString = dateString;
+                box.dataset.dateMs = boxDate.getTime(); 
+                
+                box.addEventListener('click', handleBoxClick);
+                
+                const content = document.createElement('div');
+                content.classList.add('day-content');
+
+                if (dayIndex < CURRENT_DAY_NUMBER) { 
+                    box.classList.add('marked');
+                    content.textContent = 'X';
+                } else if (dayIndex === CURRENT_DAY_NUMBER) {
+                    box.classList.add('current-day');
+                    // Display the Day Number
+                    content.textContent = dayIndex; 
+                }
+                
+                box.appendChild(content);
+                grid.appendChild(box);
+            }
+        }
+
+        // Initialize the app
+        renderGrid(); 
+    </script>
+</body>
+</html>
